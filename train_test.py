@@ -1,17 +1,16 @@
-#-----------------------------------
+# -----------------------------------
 # TRAINING OUR MODEL
-#-----------------------------------
+# -----------------------------------
 
 # import the necessary packages
 import h5py
 import numpy as np
 import os
-import glob
 import cv2
+import warnings
 from matplotlib import pyplot
 from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.model_selection import KFold, StratifiedKFold
-from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
+from sklearn.model_selection import KFold
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
@@ -19,7 +18,28 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.naive_bayes import GaussianNB
 from sklearn.svm import SVC
-from sklearn.externals import joblib
+
+from common_defs import (
+    fd_hu_moments, fd_haralick, fd_histogram, fixed_size, train_path)
+
+# filter all the warnings
+warnings.filterwarnings('ignore')
+
+# no.of.trees for Random Forests
+num_trees = 100
+
+# train_test_split size
+test_size = 0.10
+
+# seed for reproducing same results
+seed = 9
+
+# get the training labels
+train_labels = os.listdir(train_path)
+
+# sort the training labels
+train_labels.sort()
+print(train_labels)
 
 # create all the machine learning models
 models = []
@@ -27,7 +47,8 @@ models.append(('LR', LogisticRegression(random_state=9)))
 models.append(('LDA', LinearDiscriminantAnalysis()))
 models.append(('KNN', KNeighborsClassifier()))
 models.append(('CART', DecisionTreeClassifier(random_state=9)))
-models.append(('RF', RandomForestClassifier(n_estimators=num_trees, random_state=9)))
+models.append(('RF', RandomForestClassifier(
+    n_estimators=num_trees, random_state=9)))
 models.append(('NB', GaussianNB()))
 models.append(('SVM', SVC(random_state=9)))
 
@@ -50,31 +71,29 @@ h5f_data.close()
 h5f_label.close()
 
 # verify the shape of the feature vector and labels
-print "[STATUS] features shape: {}".format(global_features.shape)
-print "[STATUS] labels shape: {}".format(global_labels.shape)
+print("[STATUS] features shape: {}".format(global_features.shape))
+print("[STATUS] labels shape: {}".format(global_labels.shape))
 
-print "[STATUS] training started..."
+print("[STATUS] training started...")
 
 # split the training and testing data
-(trainDataGlobal, testDataGlobal, trainLabelsGlobal, testLabelsGlobal) = train_test_split(np.array(global_features),
-                                                                                          np.array(global_labels),
-                                                                                          test_size=test_size,
-                                                                                          random_state=seed)
+(trainDataGlobal, testDataGlobal, trainLabelsGlobal, testLabelsGlobal) = (
+    train_test_split(np.array(global_features),
+                     np.array(global_labels),
+                     test_size=test_size,
+                     random_state=seed))
 
-print "[STATUS] splitted train and test data..."
-print "Train data  : {}".format(trainDataGlobal.shape)
-print "Test data   : {}".format(testDataGlobal.shape)
-print "Train labels: {}".format(trainLabelsGlobal.shape)
-print "Test labels : {}".format(testLabelsGlobal.shape)
-
-# filter all the warnings
-import warnings
-warnings.filterwarnings('ignore')
+print("[STATUS] splitted train and test data...")
+print("Train data  : {}".format(trainDataGlobal.shape))
+print("Test data   : {}".format(testDataGlobal.shape))
+print("Train labels: {}".format(trainLabelsGlobal.shape))
+print("Test labels : {}".format(testLabelsGlobal.shape))
 
 # 10-fold cross validation
 for name, model in models:
     kfold = KFold(n_splits=10, random_state=7)
-    cv_results = cross_val_score(model, trainDataGlobal, trainLabelsGlobal, cv=kfold, scoring=scoring)
+    cv_results = cross_val_score(
+        model, trainDataGlobal, trainLabelsGlobal, cv=kfold, scoring=scoring)
     results.append(cv_results)
     names.append(name)
     msg = "%s: %f (%f)" % (name, cv_results.mean(), cv_results.std())
@@ -88,15 +107,12 @@ pyplot.boxplot(results)
 ax.set_xticklabels(names)
 pyplot.show()
 
-#-----------------------------------
+# -----------------------------------
 # TESTING OUR MODEL
-#-----------------------------------
-
-# to visualize results
-import matplotlib.pyplot as plt
+# -----------------------------------
 
 # create the model - Random Forests
-clf  = RandomForestClassifier(n_estimators=100, random_state=9)
+clf = RandomForestClassifier(n_estimators=100, random_state=9)
 
 # fit the training data to the model
 clf.fit(trainDataGlobal, trainLabelsGlobal)
@@ -105,31 +121,41 @@ clf.fit(trainDataGlobal, trainLabelsGlobal)
 test_path = "dataset/test"
 
 # loop through the test images
-for file in glob.glob(test_path + "/*.jpg"):
-    # read the image
-    image = cv2.imread(file)
+for fname in os.listdir(test_path):
+    test_subpath = os.path.join(test_path, fname)
 
-    # resize the image
-    image = cv2.resize(image, fixed_size)
+    for fname in os.listdir(test_subpath):
 
-    ####################################
-    # Global Feature extraction
-    ####################################
-    fv_hu_moments = fd_hu_moments(image)
-    fv_haralick   = fd_haralick(image)
-    fv_histogram  = fd_histogram(image)
+        # get the image file name
+        file = os.path.join(test_subpath, fname)
+        print(file)
 
-    ###################################
-    # Concatenate global features
-    ###################################
-    global_feature = np.hstack([fv_histogram, fv_haralick, fv_hu_moments])
+        # read the image
+        image = cv2.imread(file)
 
-    # predict label of test image
-    prediction = clf.predict(global_feature.reshape(1,-1))[0]
+        # resize the image
+        image = cv2.resize(image, fixed_size)
 
-    # show predicted label on image
-    cv2.putText(image, train_labels[prediction], (20,30), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,255,255), 3)
+        ####################################
+        # Global Feature extraction
+        ####################################
+        fv_hu_moments = fd_hu_moments(image)
+        fv_haralick = fd_haralick(image)
+        fv_histogram = fd_histogram(image)
 
-    # display the output image
-    plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-    plt.show()
+        ###################################
+        # Concatenate global features
+        ###################################
+        global_feature = np.hstack([fv_histogram, fv_haralick, fv_hu_moments])
+
+        # predict label of test image
+        prediction = clf.predict(global_feature.reshape(1, -1))[0]
+
+        # show predicted label on image
+        cv2.putText(
+            image, train_labels[prediction], (20, 30),
+            cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 255), 3)
+
+        # display the output image
+        pyplot.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        pyplot.show()
