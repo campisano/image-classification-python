@@ -1,6 +1,6 @@
-#-----------------------------------
+# -----------------------------------
 # GLOBAL FEATURE EXTRACTION
-#-----------------------------------
+# -----------------------------------
 
 # organize imports
 from sklearn.preprocessing import LabelEncoder
@@ -10,7 +10,8 @@ import cv2
 import os
 import h5py
 
-from common_defs import fd_hu_moments, fd_haralick, fd_histogram, fixed_size, train_path
+from common_defs import (
+    fd_hu_moments, fd_haralick, fd_histogram, fixed_size, train_path)
 
 # get the training labels
 train_labels = os.listdir(train_path)
@@ -51,8 +52,8 @@ for training_name in train_labels:
         # Global Feature extraction
         ####################################
         fv_hu_moments = fd_hu_moments(image)
-        fv_haralick   = fd_haralick(image)
-        fv_histogram  = fd_histogram(image)
+        fv_haralick = fd_haralick(image)
+        fv_histogram = fd_histogram(image)
 
         ###################################
         # Concatenate global features
@@ -71,7 +72,8 @@ for training_name in train_labels:
 print("[STATUS] completed Global Feature Extraction...")
 
 # get the overall feature vector size
-print("[STATUS] feature vector size {}".format(np.array(global_features).shape))
+print("[STATUS] feature vector size {}".format(
+    np.array(global_features).shape))
 
 # get the overall training label size
 print("[STATUS] training Labels {}".format(np.array(labels).shape))
